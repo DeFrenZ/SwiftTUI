@@ -1,7 +1,7 @@
 import Foundation
 
 @propertyWrapper
-public struct State<T>: AnyState {
+@MainActor public struct State<T>: AnyState {
     public let initialValue: T
 
     public init(initialValue: T) {
@@ -51,11 +51,11 @@ public struct State<T>: AnyState {
     }
 }
 
-protocol AnyState {
+@MainActor protocol AnyState {
     var valueReference: StateReference { get }
 }
 
-class StateReference {
+@MainActor class StateReference {
     weak var node: Node?
     var label: String?
 }

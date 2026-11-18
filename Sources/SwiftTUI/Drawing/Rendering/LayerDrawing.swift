@@ -1,6 +1,6 @@
 import Foundation
 
-protocol LayerDrawing: AnyObject {
+@MainActor protocol LayerDrawing: AnyObject {
     func cell(at position: Position) -> Cell?
 }
 

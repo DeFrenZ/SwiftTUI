@@ -1,7 +1,7 @@
 import Foundation
 
 @propertyWrapper
-public struct Binding<T> {
+@MainActor public struct Binding<T> {
     let get: () -> T
     let set: (T) -> Void
 

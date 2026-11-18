@@ -14,7 +14,7 @@ import Combine
 ///
 /// Note that the control tree more closely resembles the layout hierarchy,
 /// because structural views (ForEach, etc.) have their own node.
-final class Node {
+@MainActor final class Node {
     var view: GenericView
 
     var state: [String: Any] = [:]

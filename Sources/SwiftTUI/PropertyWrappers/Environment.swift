@@ -1,11 +1,11 @@
 import Foundation
 
-public protocol EnvironmentKey {
+@MainActor public protocol EnvironmentKey {
     associatedtype Value
     static var defaultValue: Value { get }
 }
 
-public struct EnvironmentValues {
+@MainActor public struct EnvironmentValues {
     var values: [ObjectIdentifier: Any] = [:]
     public subscript<K: EnvironmentKey>(key: K.Type) -> K.Value {
         get { values[ObjectIdentifier(key)] as? K.Value ?? K.defaultValue }
@@ -14,7 +14,7 @@ public struct EnvironmentValues {
 }
 
 @propertyWrapper
-public struct Environment<T>: AnyEnvironment {
+@MainActor public struct Environment<T>: AnyEnvironment {
     let keyPath: KeyPath<EnvironmentValues, T>
 
     public init(_ keyPath: KeyPath<EnvironmentValues, T>) {
@@ -49,10 +49,10 @@ public struct Environment<T>: AnyEnvironment {
     }
 }
 
-protocol AnyEnvironment {
+@MainActor protocol AnyEnvironment {
     var valueReference: EnvironmentReference { get }
 }
 
-class EnvironmentReference {
+@MainActor class EnvironmentReference {
     weak var node: Node?
 }

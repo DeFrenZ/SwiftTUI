@@ -3,7 +3,7 @@ import Foundation
 import AppKit
 #endif
 
-public class Application {
+@MainActor public class Application {
     private let node: Node
     private let window: Window
     private let control: Control

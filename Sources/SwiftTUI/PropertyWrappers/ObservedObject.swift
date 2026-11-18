@@ -3,7 +3,7 @@ import Foundation
 import Combine
 
 @propertyWrapper
-public struct ObservedObject<T: ObservableObject>: AnyObservedObject {
+@MainActor public struct ObservedObject<T: ObservableObject>: AnyObservedObject {
     public let initialValue: T
 
     public init(initialValue: T) {
@@ -23,7 +23,7 @@ public struct ObservedObject<T: ObservableObject>: AnyObservedObject {
     }
 }
 
-protocol AnyObservedObject {
+@MainActor protocol AnyObservedObject {
     func subscribe(_ action: @escaping () -> Void) -> AnyCancellable
 }
 
