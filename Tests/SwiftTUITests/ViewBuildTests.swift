@@ -42,6 +42,28 @@ import XCTest
             """)
     }
 
+    func test_AnyView_updatesInPlaceWhileItsTypeStays() throws {
+        let node = Node(view: VStack(content: AnyView(Text("One"))).view)
+        node.build()
+        let text = try XCTUnwrap(node.control?.children.first)
+
+        node.update(using: VStack(content: AnyView(Text("Two"))).view)
+
+        XCTAssertTrue(node.control?.children.first === text)
+    }
+
+    func test_AnyView_rebuildsWhenItsTypeChanges() throws {
+        let node = Node(view: VStack(content: AnyView(Text("One"))).view)
+        node.build()
+
+        node.update(using: VStack(content: AnyView(VStack { Text("One") })).view)
+
+        XCTAssertEqual(try XCTUnwrap(node.control?.children.first).treeDescription, """
+            → VStackControl
+              → TextControl
+            """)
+    }
+
     private func buildView<V: View>(_ view: V) throws -> Control {
         let node = Node(view: VStack(content: view).view)
         node.build()
