@@ -53,9 +53,16 @@ public struct Text: View, PrimitiveView {
     }
     
     private class TextControl: Control {
-        var text: String?
+        var text: String? {
+            didSet { wrapping = nil }
+        }
         
-        var _attributedText: Any?
+        var _attributedText: Any? {
+            didSet { wrapping = nil }
+        }
+
+        /// The lines the text last wrapped into, and the width it wrapped to.
+        private var wrapping: (width: Extended, lines: [Range<Int>])?
         
         @available(macOS 12, *)
         var attributedText: AttributedString? { _attributedText as? AttributedString }
@@ -85,15 +92,19 @@ public struct Text: View, PrimitiveView {
         }
         
         override func size(proposedSize: Size) -> Size {
-            return Size(width: Extended(characterCount), height: 1)
+            let lines = lines(fittingWidth: proposedSize.width)
+            return Size(width: Extended(lines.map(\.count).max() ?? 0), height: Extended(lines.count))
         }
         
         override func cell(at position: Position) -> Cell? {
-            guard position.line == 0 else { return nil }
-            guard position.column < Extended(characterCount) else { return .init(char: " ") }
+            let lines = lines(fittingWidth: layer.frame.size.width)
+            guard position.line.intValue < lines.count else { return nil }
+            let line = lines[position.line.intValue]
+            guard position.column < Extended(line.count) else { return .init(char: " ") }
+            let offset = line.lowerBound + position.column.intValue
             if #available(macOS 12, *), let attributedText {
                 let characters = attributedText.characters
-                let i = characters.index(characters.startIndex, offsetBy: position.column.intValue)
+                let i = characters.index(characters.startIndex, offsetBy: offset)
                 let char = attributedText[i ..< characters.index(after: i)]
                 let cellAttributes = CellAttributes(
                     bold: char.bold ?? bold,
@@ -117,7 +128,7 @@ public struct Text: View, PrimitiveView {
                     strikethrough: strikethrough
                 )
                 return Cell(
-                    char: text[text.index(text.startIndex, offsetBy: position.column.intValue)],
+                    char: text[text.index(text.startIndex, offsetBy: offset)],
                     foregroundColor: foregroundColor,
                     attributes: cellAttributes
                 )
@@ -125,11 +136,50 @@ public struct Text: View, PrimitiveView {
             return nil
         }
         
-        private var characterCount: Int {
-            if #available(macOS 12, *), let attributedText {
-                return attributedText.characters.count
+        /// The character ranges of the lines the text wraps into to fit `width`, as SwiftUI wraps text: at the last space that fits, or within a word longer than the whole width.
+        ///
+        /// A space a line breaks at belongs to neither line.
+        private func lines(fittingWidth width: Extended) -> [Range<Int>] {
+            if let wrapping, wrapping.width == width {
+                return wrapping.lines
             }
-            return text?.count ?? 0
+            let lines = Self.lines(of: characters, fittingWidth: width)
+            wrapping = (width, lines)
+            return lines
         }
+
+        private static func lines(of characters: [Character], fittingWidth width: Extended) -> [Range<Int>] {
+            guard width != .infinity, characters.count > width.intValue else { return [0 ..< characters.count] }
+            let width = max(width.intValue, 1)
+            var lines: [Range<Int>] = []
+            var start = 0
+            while start < characters.count {
+                if !lines.isEmpty {
+                    while start < characters.count, characters[start] == " " { start += 1 }
+                    guard start < characters.count else { break }
+                }
+                let limit = start + width
+                guard limit < characters.count else {
+                    lines.append(start ..< characters.count)
+                    break
+                }
+                if let space = characters[start ... limit].lastIndex(of: " "), space > start {
+                    lines.append(start ..< space)
+                    start = space
+                } else {
+                    lines.append(start ..< limit)
+                    start = limit
+                }
+            }
+            return lines
+        }
+
+        private var characters: [Character] {
+            if #available(macOS 12, *), let attributedText {
+                return Array(attributedText.characters)
+            }
+            return Array(text ?? "")
+        }
+
     }
 }

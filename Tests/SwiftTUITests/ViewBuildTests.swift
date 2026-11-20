@@ -75,6 +75,36 @@ import XCTest
         XCTAssertEqual(performed, ["second"])
     }
 
+    func test_Text_wrapsAtTheLastSpaceThatFits() throws {
+        let control = try buildView(Text("one two three"))
+
+        XCTAssertEqual(control.size(proposedSize: Size(width: 8, height: .infinity)), Size(width: 7, height: 2))
+        control.layout(size: Size(width: 8, height: 2))
+        XCTAssertEqual(lines(of: control, size: Size(width: 8, height: 2)), ["one two ", "three   "])
+    }
+
+    func test_Text_breaksAWordLongerThanTheWidth() throws {
+        let control = try buildView(Text("abcdefgh ij"))
+
+        control.layout(size: Size(width: 4, height: 3))
+        XCTAssertEqual(lines(of: control, size: Size(width: 4, height: 3)), ["abcd", "efgh", "ij  "])
+    }
+
+    func test_Text_staysOnOneLineWhenItFits() throws {
+        let control = try buildView(Text("one two"))
+
+        XCTAssertEqual(control.size(proposedSize: Size(width: .infinity, height: .infinity)), Size(width: 7, height: 1))
+        XCTAssertEqual(control.size(proposedSize: Size(width: 7, height: .infinity)), Size(width: 7, height: 1))
+    }
+
+    private func lines(of control: Control, size: Size) -> [String] {
+        (0 ..< size.height.intValue).map { line in
+            String((0 ..< size.width.intValue).map { column in
+                control.cell(at: Position(column: Extended(column), line: Extended(line)))?.char ?? "?"
+            })
+        }
+    }
+
     private func buildView<V: View>(_ view: V) throws -> Control {
         let node = Node(view: VStack(content: view).view)
         node.build()
