@@ -17,8 +17,16 @@ import AppKit
     private var invalidatedNodes: [Node] = []
     private var updateScheduled = false
 
-    public init<I: View>(rootView: I, runLoopType: RunLoopType = .dispatch) {
+    /// Hears of the application's ``AccessibilitySnapshot`` each time it changes.
+    private let accessibilityObserver: ((AccessibilitySnapshot) -> Void)?
+    private var publishedAccessibilitySnapshot: AccessibilitySnapshot?
+
+    /// An application drawing `rootView` on the terminal, telling `accessibilityObserver` of what it shows each time that changes.
+    ///
+    /// The observer is how something outside the terminal follows the application without reading its output, such as a test driving it through a pseudo-terminal.
+    public init<I: View>(rootView: I, runLoopType: RunLoopType = .dispatch, accessibilityObserver: ((AccessibilitySnapshot) -> Void)? = nil) {
         self.runLoopType = runLoopType
+        self.accessibilityObserver = accessibilityObserver
 
         node = Node(view: VStack(content: rootView).view)
         node.build()
@@ -44,6 +52,7 @@ import AppKit
     /// It reads no input and writes nothing to the terminal; invalidated views update on the main queue, as they do in a running application.
     init<I: View>(headlessRootView rootView: I, size: Size) {
         runLoopType = .dispatch
+        accessibilityObserver = nil
 
         node = Node(view: VStack(content: rootView).view)
         node.build()
@@ -82,6 +91,7 @@ import AppKit
         updateWindowSize()
         control.layout(size: window.layer.frame.size)
         renderer?.draw()
+        publishAccessibilitySnapshot()
 
         let stdInSource = DispatchSource.makeReadSource(fileDescriptor: STDIN_FILENO, queue: .main)
         stdInSource.setEventHandler(qos: .default, flags: [], handler: { [weak self] in self?.handleInput() })
@@ -190,6 +200,22 @@ import AppKit
         } else {
             window.layer.invalidated = nil
         }
+        publishAccessibilitySnapshot()
+    }
+
+    /// What the application shows, published.
+    var accessibilitySnapshot: AccessibilitySnapshot {
+        window.accessibilitySnapshot
+    }
+
+    private func publishAccessibilitySnapshot() {
+        guard let accessibilityObserver else { return }
+
+        let snapshot = accessibilitySnapshot
+        guard snapshot != publishedAccessibilitySnapshot else { return }
+
+        publishedAccessibilitySnapshot = snapshot
+        accessibilityObserver(snapshot)
     }
 
     private func handleWindowSizeChange() {

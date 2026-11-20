@@ -144,6 +144,51 @@ import XCTest
         XCTAssertEqual(performed, ["two"])
     }
 
+    func test_accessibilitySnapshot_publishesIdentifiedElements() {
+        let application = Application(
+            headlessRootView: VStack {
+                Text("Title")
+                VStack {
+                    Button("One") {}.accessibilityIdentifier("one")
+                    Button("Two") {}
+                }
+                .accessibilityIdentifier("list")
+            },
+            size: Size(width: 5, height: 3))
+
+        application.handle(input: "\u{1b}[B")
+
+        XCTAssertEqual(
+            application.accessibilitySnapshot,
+            AccessibilitySnapshot(
+                elements: [
+                    AccessibilityElement(
+                        identifier: "list",
+                        label: "One\nTwo",
+                        frame: AccessibilityFrame(column: 0, line: 1, width: 3, height: 2),
+                        isFocused: true,
+                        children: [
+                            AccessibilityElement(identifier: "one", label: "One", frame: AccessibilityFrame(column: 0, line: 1, width: 3, height: 1), isFocused: false, children: []),
+                        ]),
+                ],
+                focusedFrame: AccessibilityFrame(column: 0, line: 2, width: 3, height: 1)))
+    }
+
+    func test_accessibilityIdentifier_followsItsUpdates() {
+        struct Root: View {
+            @State var identifier = "before"
+            var body: some View {
+                Button(identifier) { identifier = "after" }.accessibilityIdentifier(identifier)
+            }
+        }
+        let application = Application(headlessRootView: Root(), size: Size(width: 6, height: 1))
+
+        application.handle(input: "\n")
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+
+        XCTAssertEqual(application.accessibilitySnapshot.elements.map(\.identifier), ["after"])
+    }
+
     private func lines(of control: Control, size: Size) -> [String] {
         (0 ..< size.height.intValue).map { line in
             String((0 ..< size.width.intValue).map { column in
