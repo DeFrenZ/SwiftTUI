@@ -5,9 +5,10 @@ import AppKit
 
 @MainActor public class Application {
     private let node: Node
-    private let window: Window
+    let window: Window
     private let control: Control
-    private let renderer: Renderer
+    /// What draws the window on the terminal, or `nil` for an application drawing nowhere.
+    private let renderer: Renderer?
 
     private let runLoopType: RunLoopType
 
@@ -30,11 +31,36 @@ import AppKit
         window.firstResponder = control.firstSelectableElement
         window.firstResponder?.becomeFirstResponder()
 
-        renderer = Renderer(layer: window.layer)
+        let renderer = Renderer(layer: window.layer)
+        self.renderer = renderer
         window.layer.renderer = renderer
 
         node.application = self
         renderer.application = self
+    }
+
+    /// An application drawing `rootView` nowhere, in a window of `size`, to drive with ``handle(input:)`` and read back through ``window``.
+    ///
+    /// It reads no input and writes nothing to the terminal; invalidated views update on the main queue, as they do in a running application.
+    init<I: View>(headlessRootView rootView: I, size: Size) {
+        runLoopType = .dispatch
+
+        node = Node(view: VStack(content: rootView).view)
+        node.build()
+
+        control = node.control!
+
+        window = Window()
+        window.addControl(control)
+        window.layer.frame.size = size
+
+        window.firstResponder = control.firstSelectableElement
+        window.firstResponder?.becomeFirstResponder()
+
+        renderer = nil
+
+        node.application = self
+        control.layout(size: size)
     }
 
     var stdInSource: DispatchSourceRead?
@@ -55,7 +81,7 @@ import AppKit
         setInputMode()
         updateWindowSize()
         control.layout(size: window.layer.frame.size)
-        renderer.draw()
+        renderer?.draw()
 
         let stdInSource = DispatchSource.makeReadSource(fileDescriptor: STDIN_FILENO, queue: .main)
         stdInSource.setEventHandler(qos: .default, flags: [], handler: { [weak self] in self?.handleInput() })
@@ -96,6 +122,11 @@ import AppKit
             return
         }
 
+        handle(input: string)
+    }
+
+    /// Handles `string` as typed input: arrow keys move the focus, and every other character goes to the focused control.
+    func handle(input string: String) {
         for char in string {
             if arrowKeyParser.parse(character: char) {
                 guard let key = arrowKeyParser.arrowKey else { continue }
@@ -154,7 +185,11 @@ import AppKit
         invalidatedNodes = []
 
         control.layout(size: window.layer.frame.size)
-        renderer.update()
+        if let renderer {
+            renderer.update()
+        } else {
+            window.layer.invalidated = nil
+        }
     }
 
     private func handleWindowSizeChange() {
@@ -171,11 +206,11 @@ import AppKit
             return
         }
         window.layer.frame.size = Size(width: Extended(Int(size.ws_col)), height: Extended(Int(size.ws_row)))
-        renderer.setCache()
+        renderer?.setCache()
     }
 
     private func stop() {
-        renderer.stop()
+        renderer?.stop()
         resetInputMode() // Fix for: https://github.com/rensbreur/SwiftTUI/issues/25
         exit(0)
     }

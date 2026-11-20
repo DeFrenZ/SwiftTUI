@@ -28,9 +28,12 @@ public struct ScrollView<Content: View>: View, PrimitiveView {
         var contentControl: Control!
         var contentOffset: Extended = 0
 
+        override var scrollsContentVertically: Bool { true }
+
         override func layout(size: Size) {
             super.layout(size: size)
-            let contentSize = contentControl.size(proposedSize: .zero)
+            // Its own width, as SwiftUI's vertical scroll view offers, so that text wraps inside it; no height, so that the content takes its least.
+            let contentSize = contentControl.size(proposedSize: Size(width: size.width, height: 0))
             contentControl.layout(size: contentSize)
             contentControl.layer.frame.position.line = -contentOffset
         }

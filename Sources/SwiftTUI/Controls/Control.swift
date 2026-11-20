@@ -65,6 +65,9 @@ import Foundation
         layer.frame.size = size
     }
 
+    /// Whether the content of this control may run past it vertically, as a scroll view's does: what runs past is scrolled into view, not lost.
+    var scrollsContentVertically: Bool { false }
+
     func horizontalFlexibility(height: Extended) -> Extended {
         let minSize = size(proposedSize: Size(width: 0, height: height))
         let maxSize = size(proposedSize: Size(width: .infinity, height: height))
