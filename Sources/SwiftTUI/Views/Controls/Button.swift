@@ -30,6 +30,10 @@ public struct Button<Label: View>: View, PrimitiveView {
     func updateNode(_ node: Node) {
         node.view = self
         node.children[0].update(using: label.view)
+        // The closures can capture state that has moved on since the control was built.
+        let control = node.control as! ButtonControl
+        control.action = action
+        control.hover = hover
     }
 
     private class ButtonControl: Control {

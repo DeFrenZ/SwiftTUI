@@ -64,6 +64,17 @@ import XCTest
             """)
     }
 
+    func test_Button_performsTheActionOfItsLatestUpdate() throws {
+        var performed: [String] = []
+        let node = Node(view: VStack(content: Button("Go") { performed.append("first") }).view)
+        node.build()
+
+        node.update(using: VStack(content: Button("Go") { performed.append("second") }).view)
+        try XCTUnwrap(node.control?.children.first).handleEvent("\n")
+
+        XCTAssertEqual(performed, ["second"])
+    }
+
     private func buildView<V: View>(_ view: V) throws -> Control {
         let node = Node(view: VStack(content: view).view)
         node.build()
